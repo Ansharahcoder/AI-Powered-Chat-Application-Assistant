@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI-Powered Chat Assistant</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f5ff',
+              100: '#e0ebff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          },
+          animation: {
+            'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'bounce-slow': 'bounce 1.5s infinite',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.3);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.5);
+    }
+    
+    /* Glassmorphism effect */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .dark .glass-panel {
+      background: rgba(17, 24, 39, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* Typing cursor */
+    .typing-cursor::after {
+      content: '▋';
+      display: inline-block;
+      margin-left: 2px;
+      animation: blink 0.8s infinite;
+      color: #3b82f6;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300 flex flex-col font-sans">
+
+  <header class="sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 glass-panel px-4 py-3 sm:px-6 shadow-sm">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      
+      <!-- Left side: AI Info & Status -->
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 p-0.5 shadow-md flex items-center justify-center">
+            <!-- Custom AI Avatar SVG -->
+            <svg class="w-full h-full rounded-full bg-slate-900 p-1.5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+              <path d="M4 11a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7z"/>
+              <circle cx="9" cy="14" r="1" fill="currentColor"/>
+              <circle cx="15" cy="14" r="1" fill="currentColor"/>
+              <path d="M10 17h4"/>
+            </svg>
+          </div>
+          <!-- Online status dot -->
+          <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
+        </div>
+        <div>
+          <h1 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            Gemini Assistant 
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-700">v2.5</span>
+          </h1>
+          <p id="status-indicator" class="text-xs text-slate-500 dark:text-slate-400">Online & Ready</p>
+        </div>
+      </div>
+
+      <!-- Right side: Quick Control Actions -->
+      <div class="flex items-center gap-2">
+        <!-- Voice Toggle -->
+        <button id="tts-toggle" title="Toggle Auto-Voice Output" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 text-sm">
+          <i id="tts-icon" class="ph-bold ph-speaker-high text-lg text-blue-500"></i>
+          <span class="hidden sm:inline text-xs font-medium">Voice</span>
+        </button>
+
+        <!-- Theme Toggle Button -->
+        <button id="theme-toggle" title="Toggle Dark/Light Mode" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-all">
+          <i id="theme-icon" class="ph-bold ph-moon-stars text-lg"></i>
+        </button>
+
+        <!-- Clear Chat Button -->
+        <button id="clear-chat" title="Clear Conversation" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-500 transition-all">
+          <i class="ph-bold ph-trash text-lg"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-between overflow-hidden">
+    
+    <!-- Messages Scroll Box -->
+    <div id="chat-container" class="flex-1 overflow-y-auto space-y-4 pr-1 pb-4">
+      
+      <!-- Welcome Intro Card -->
+      <div id="welcome-card" class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-900 dark:to-slate-900/80 border border-blue-100 dark:border-slate-800 rounded-2xl p-6 text-center space-y-4 shadow-sm my-4">
+        <div class="w-16 h-16 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-inner">
+          <i class="ph-bold ph-sparkle"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-white">Hello! How can I help you today?</h2>
+          <p class="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto mt-1">
+            I am your intelligent assistant. Ask me questions, try voice commands, or click any prompt chip below!
+          </p>
+        </div>
+
+        <!-- Quick Action Prompt Chips -->
+        <div class="pt-2 flex flex-wrap justify-center gap-2">
+          <button onclick="sendQuickPrompt('Tell me a funny dad joke!')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5">
+            <span>🤣</span> Tell me a joke
+          </button>
+          <button onclick="sendQuickPrompt('Write a Python function to check for prime numbers.')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5">
+            <span>💻</span> Write Python code
+          </button>
+          <button onclick="sendQuickPrompt('Explain Quantum Computing in simple terms.')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5">
+            <span>⚛️</span> Quantum Physics
+          </button>
+          <button onclick="sendQuickPrompt('Give me 3 productivity hacks for students.')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5">
+            <span>💡</span> Productivity Tips
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages will be appended here dynamically -->
+    </div>
+
+    <div class="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+      
+      <!-- Listening Pulse Indicator -->
+      <div id="listening-indicator" class="hidden mb-2 py-1 px-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between text-red-600 dark:text-red-400 text-xs animate-pulse">
+        <span class="flex items-center gap-2 font-medium">
+          <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+          Listening to your voice... Speak now!
+        </span>
+        <button onclick="stopListening()" class="underline font-bold text-xs hover:opacity-80">Cancel</button>
+      </div>
+
+      <!-- Input Form Container -->
+      <form id="chat-form" onsubmit="handleFormSubmit(event)" class="relative flex items-center gap-2">
+        
+        <!-- Voice Record Button -->
+        <button type="button" id="mic-btn" title="Speak via Voice Input" class="p-3.5 rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-all shadow-sm flex-shrink-0">
+          <i class="ph-bold ph-microphone text-xl"></i>
+        </button>
+
+        <!-- Message Input Field -->
+        <div class="relative flex-1">
+          <input 
+            type="text" 
+            id="user-input" 
+            placeholder="Ask me anything or use voice input..." 
+            class="w-full py-3.5 pl-4 pr-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm shadow-sm transition-all"
+            autocomplete="off"
+          />
+        </div>
+
+        <!-- Send Button -->
+        <button type="submit" id="send-btn" title="Send Message" class="p-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="ph-bold ph-paper-plane-right text-xl"></i>
+        </button>
+      </form>
+      <div class="text-[10px] text-center text-slate-400 dark:text-slate-500 mt-2">
+        Powered by Gemini AI • Real-time Web Speech Integration
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* ----------------------------------------------------
+       State Management
+    ---------------------------------------------------- */
+    let isDarkMode = true;
+    let isSpeechEnabled = true;
+    let isListening = false;
+    let recognition = null;
+    let isGenerating = false;
+
+    // Elements
+    const chatContainer = document.getElementById('chat-container');
+    const userInput = document.getElementById('user-input');
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const ttsToggleBtn = document.getElementById('tts-toggle');
+    const ttsIcon = document.getElementById('tts-icon');
+    const micBtn = document.getElementById('mic-btn');
+    const listeningIndicator = document.getElementById('listening-indicator');
+    const clearChatBtn = document.getElementById('clear-chat');
+    const statusIndicator = document.getElementById('status-indicator');
+
+    /* ----------------------------------------------------
+       1. Theme Switcher Setup
+    ---------------------------------------------------- */
+    function initTheme() {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        isDarkMode = false;
+      }
+      applyTheme();
+    }
+
+    function applyTheme() {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        themeIcon.className = 'ph-bold ph-sun text-lg text-amber-400';
+      } else {
+        document.documentElement.classList.remove('dark');
+        themeIcon.className = 'ph-bold ph-moon-stars text-lg text-slate-600';
+      }
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      isDarkMode = !isDarkMode;
+      applyTheme();
+    });
+
+    /* ----------------------------------------------------
+       2. Web Speech API (Speech Recognition & Synthesis)
+    ---------------------------------------------------- */
+    // Text-to-Speech (TTS)
+    ttsToggleBtn.addEventListener('click', () => {
+      isSpeechEnabled = !isSpeechEnabled;
+      if (isSpeechEnabled) {
+        ttsIcon.className = 'ph-bold ph-speaker-high text-lg text-blue-500';
+        speakText("Voice response enabled.");
+      } else {
+        ttsIcon.className = 'ph-bold ph-speaker-x text-lg text-slate-400';
+        window.speechSynthesis.cancel();
+      }
+    });
+
+    function speakText(text) {
+      if (!isSpeechEnabled || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel(); // Stop ongoing speech
+
+      // Remove markdown/code tags before speaking
+      const cleanText = text.replace(/```[\s\S]*?```/g, 'Code block omitted.').replace(/[*_#]/g, '');
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Speech-to-Text (STT) Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.add('bg-red-500', 'text-white', 'animate-pulse');
+        listeningIndicator.classList.remove('hidden');
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        userInput.value = transcript;
+        stopListening();
+        // Auto send on voice command
+        handleFormSubmit(new Event('submit'));
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        stopListening();
+      };
+
+      recognition.onend = () => {
+        stopListening();
+      };
+
+      micBtn.addEventListener('click', () => {
+        if (isListening) {
+          stopListening();
+        } else {
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      });
+    } else {
+      micBtn.style.display = 'none'; // Speech recognition not supported
+    }
+
+    function stopListening() {
+      isListening = false;
+      if (recognition) recognition.stop();
+      micBtn.classList.remove('bg-red-500', 'text-white', 'animate-pulse');
+      listeningIndicator.classList.add('hidden');
+    }
+
+    /* ----------------------------------------------------
+       3. UI Message Handling & Avatars
+    ---------------------------------------------------- */
+    const USER_AVATAR = `
+      <svg class="w-full h-full text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>`;
+
+    const AI_AVATAR = `
+      <svg class="w-full h-full text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+        <path d="M4 11a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7z"/>
+        <circle cx="9" cy="14" r="1" fill="currentColor"/>
+        <circle cx="15" cy="14" r="1" fill="currentColor"/>
+      </svg>`;
+
+    function appendUserMessage(text) {
+      // Hide welcome card
+      const welcomeCard = document.getElementById('welcome-card');
+      if (welcomeCard) welcomeCard.style.display = 'none';
+
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const msgGroup = document.createElement('div');
+      msgGroup.className = 'flex items-start gap-3 justify-end';
+
+      msgGroup.innerHTML = `
+        <div class="flex flex-col items-end max-w-[80%]">
+          <div class="bg-blue-600 text-white p-3.5 rounded-2xl rounded-tr-none shadow-sm text-sm">
+            ${escapeHTML(text)}
+          </div>
+          <span class="text-[10px] text-slate-400 mt-1">${time}</span>
+        </div>
+        <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-950 p-1 flex-shrink-0 border border-indigo-200 dark:border-indigo-800">
+          ${USER_AVATAR}
+        </div>
+      `;
+
+      chatContainer.appendChild(msgGroup);
+      scrollToBottom();
+    }
+
+    function createAIBubble() {
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const msgGroup = document.createElement('div');
+      msgGroup.className = 'flex items-start gap-3';
+
+      const messageId = 'ai-msg-' + Date.now();
+
+      msgGroup.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-slate-900 p-1.5 flex-shrink-0 border border-slate-700 shadow-sm">
+          ${AI_AVATAR}
+        </div>
+        <div class="flex flex-col items-start max-w-[85%]">
+          <div id="${messageId}" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 p-4 rounded-2xl rounded-tl-none shadow-sm text-sm leading-relaxed typing-cursor">
+            <span class="inline-flex gap-1 items-center text-slate-400">
+              <span class="w-2 h-2 rounded-full bg-blue-500 animate-bounce"></span>
+              <span class="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.2s]"></span>
+              <span class="w-2 h-2 rounded-full bg-blue-500 animate-bounce [animation-delay:0.4s]"></span>
+            </span>
+          </div>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="text-[10px] text-slate-400">${time}</span>
+            <button onclick="copyToClipboard('${messageId}')" class="text-[10px] text-slate-400 hover:text-blue-500 flex items-center gap-0.5">
+              <i class="ph-bold ph-copy"></i> Copy
+            </button>
+          </div>
+        </div>
+      `;
+
+      chatContainer.appendChild(msgGroup);
+      scrollToBottom();
+      return messageId;
+    }
+
+    /* ----------------------------------------------------
+       4. Real-time Typing Effect & AI Engine Simulation
+    ---------------------------------------------------- */
+    async function typeResponse(elementId, fullText) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+
+      element.innerHTML = ''; // Clear loading dots
+      let index = 0;
+      
+      return new Promise((resolve) => {
+        const interval = setInterval(() => {
+          if (index < fullText.length) {
+            // Append formatted character/HTML safely
+            element.innerHTML = formatMarkdown(fullText.substring(0, index + 1));
+            index++;
+            scrollToBottom();
+          } else {
+            clearInterval(interval);
+            element.classList.remove('typing-cursor');
+            speakText(fullText);
+            resolve();
+          }
+        }, 18); // Typing speed in ms
+      });
+    }
+
+    function generateAIResponse(prompt) {
+      const p = prompt.toLowerCase();
+      
+      if (p.includes('joke')) {
+        return "Why don't scientists trust atoms?\n\nBecause they make up everything! 😄";
+      } else if (p.includes('python') || p.includes('code')) {
+        return "Here is a clean Python function for checking prime numbers:\n\n```python\ndef is_prime(n):\n    if n <= 1:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nprint(is_prime(17)) # Returns True\n```";
+      } else if (p.includes('quantum')) {
+        return "⚛️ **Quantum Computing in 1 Sentence:**\nTraditional computers use bits (0s and 1s) like light switches. Quantum computers use **qubits**, which can be BOTH 0 and 1 at the same time, allowing them to solve massive complex problems millions of times faster!";
+      } else if (p.includes('productivity') || p.includes('tip')) {
+        return "Here are 3 quick productivity hacks:\n1. ⏱️ **Pomodoro Technique:** Work 25 mins, rest 5 mins.\n2. 🐸 **Eat the Frog:** Tackle your hardest task first in the morning.\n3. 🚫 **2-Minute Rule:** If it takes less than 2 mins, do it right now!";
+      } else if (p.includes('hello') || p.includes('hi') || p.includes('hey')) {
+        return "Hello there! I'm your AI Assistant. How can I assist you with your projects today?";
+      } else {
+        return `That is an interesting query regarding "${prompt}". As an intelligent AI assistant, I can process complex queries, generate code, assist with brainstorming, and process real-time voice commands!`;
+      }
+    }
+
+    /* ----------------------------------------------------
+       5. Interaction Handlers
+    ---------------------------------------------------- */
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      if (isGenerating) return;
+
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      userInput.value = '';
+      appendUserMessage(text);
+
+      isGenerating = true;
+      statusIndicator.textContent = "Thinking...";
+      statusIndicator.classList.add("text-blue-500");
+
+      // Create AI Response Container
+      const aiBubbleId = createAIBubble();
+
+      // Simulate realistic network delay
+      setTimeout(async () => {
+        const responseText = generateAIResponse(text);
+        await typeResponse(aiBubbleId, responseText);
+        
+        isGenerating = false;
+        statusIndicator.textContent = "Online & Ready";
+        statusIndicator.classList.remove("text-blue-500");
+      }, 800);
+    }
+
+    function sendQuickPrompt(text) {
+      userInput.value = text;
+      handleFormSubmit(new Event('submit'));
+    }
+
+    // Helper utilities
+    function scrollToBottom() {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+
+    function formatMarkdown(text) {
+      // Basic markdown styling for code blocks and bold text
+      let formatted = escapeHTML(text);
+      formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-slate-800 text-blue-300 p-3 rounded-xl my-2 text-xs font-mono overflow-x-auto"><code>$2</code></pre>');
+      formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-blue-600 dark:text-blue-400">$1</strong>');
+      formatted = formatted.replace(/\n/g, '<br/>');
+      return formatted;
+    }
+
+    function copyToClipboard(elementId) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      const textToCopy = el.innerText;
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        alert("Message copied to clipboard!");
+      });
+    }
+
+    clearChatBtn.addEventListener('click', () => {
+      chatContainer.innerHTML = '';
+      const welcomeCard = document.getElementById('welcome-card');
+      if (welcomeCard) welcomeCard.style.display = 'block';
+    });
+
+    // Initialize App
+    window.onload = () => {
+      initTheme();
+    };
+  </script>
+</body>
+</html>
